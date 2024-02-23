@@ -1,5 +1,6 @@
 use crate::error_template::{AppError, ErrorTemplate};
 use crate::models::user::User;
+use crate::server::*;
 use gloo_storage::{LocalStorage, Storage};
 use leptos::*;
 use leptos_meta::*;
@@ -49,7 +50,7 @@ pub fn App() -> impl IntoView {
                         view=move || {
                             view! {
                                 <Show when=move || user.get().is_some()>
-                                    <HomePage user=user.get().unwrap()/>
+                                    <HomePage user1=user.get().unwrap()/>
                                 </Show>
                                 <Show when=move || user.get().is_none()>
                                     <div>
@@ -81,18 +82,25 @@ pub fn App() -> impl IntoView {
 
 /// Renders the home page of your application.
 #[component]
-fn HomePage(user: User) -> impl IntoView {
+fn HomePage(user1: User) -> impl IntoView {
     // Creates a reactive value to update the button
     let (count, set_count) = create_signal(0);
+    let (user, set_user) = create_signal(Option::None::<String>);
     let on_click = move |_| set_count.update(|count| *count += 1);
 
     view! {
         <h1>"Welcome to Leptos!"</h1>
 
         <div>
-            <p>{user.uuid}</p>
+            <p>{user1.uuid}</p>
         </div>
 
         <button on:click=on_click>"Click Me: " {count}</button>
+        <button on:click=move |_| {
+            spawn_local(async move {
+                let user = login_user().await.unwrap();
+                set_user(Some(user));
+        });
+        }>"Login here: " {user}</button>
     }
 }
