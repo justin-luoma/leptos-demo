@@ -23,8 +23,9 @@ pub fn App() -> impl IntoView {
 
     create_effect(move |_| {
         if !refreshed.get() {
-            if let Some(user) = user.get_untracked() {
+            if let Some(user) = user.get() {
                 LocalStorage::set("user", user).expect("LocalStorage::set user");
+                log::info!("saved user to local storage");
             }
         }
     });
@@ -43,7 +44,6 @@ pub fn App() -> impl IntoView {
         }>
             <main>
                 <Routes>
-
                     <Route
                         path=""
                         view=move || {
@@ -73,7 +73,6 @@ pub fn App() -> impl IntoView {
                             }
                         }
                     />
-
                 </Routes>
             </main>
         </Router>
