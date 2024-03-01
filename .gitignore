@@ -18,3 +18,5 @@ playwright/.cache/
 .env
 
 **/*env*
+
+example/**
