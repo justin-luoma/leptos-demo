@@ -7,7 +7,7 @@ use std::io::Write;
 fn main() {
   println!("cargo:rerun-if-changed=.env");
   let dest_path = "./src/env.rs";
-  let mut f = File::create(&dest_path).unwrap();
+  let mut f = File::create(dest_path).unwrap();
 
   // use the dotenv crate to get the .env values
   dotenv().expect("Environment variables are not provided");
@@ -15,7 +15,7 @@ fn main() {
   f.write_all(b"#![allow(unused)]\n\n").unwrap();
   for (key, value) in env::vars() {
     if key.starts_with("SUPABASE_") {
-      let line = format!("pub const {}: &'static str = \"{}\";\n", key, value.replace("\"", "\\\""));
+      let line = format!("pub const {}: &'static str = \"{}\";\n", key, value.replace('"', "\\\""));
       f.write_all(line.as_bytes()).unwrap();
     }
   }
