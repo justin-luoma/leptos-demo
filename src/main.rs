@@ -1,13 +1,36 @@
 #[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {
-    use axum::{routing::post, Router};
-    use demo::app::*;
-    use demo::fileserv::file_and_error_handler;
+    use axum::Router;
     use leptos::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
+    use leptonic_template_ssr::app::*;
+    use leptonic_template_ssr::fileserv::file_and_error_handler;
 
-    simple_logger::init_with_level(log::Level::Debug).expect("couldn't initialize logging");
+    use tracing_subscriber::{
+        prelude::__tracing_subscriber_SubscriberExt,
+        util::SubscriberInitExt,
+        Layer,
+    };
+
+    let log_filter = tracing_subscriber::filter::Targets::new()
+        .with_default(tracing::Level::INFO)
+        .with_target("tokio", tracing::Level::WARN)
+        .with_target("runtime", tracing::Level::WARN);
+
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .pretty()
+        .with_file(true)
+        .with_line_number(true)
+        .with_ansi(true)
+        .with_thread_names(false)
+        .with_thread_ids(false);
+
+    let fmt_layer_filtered = fmt_layer.with_filter(log_filter);
+
+    tracing_subscriber::Registry::default()
+        .with(fmt_layer_filtered)
+        .init();
 
     // Setting get_configuration(None) means we'll be using cargo-leptos's env values
     // For deployment these variables are:
@@ -21,16 +44,14 @@ async fn main() {
 
     // build our application with a route
     let app = Router::new()
-        .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
         .leptos_routes(&leptos_options, routes, App)
         .fallback(file_and_error_handler)
         .with_state(leptos_options);
 
-    // run our app with hyper
-    // `axum::Server` is a re-export of `hyper::Server`
-    log::info!("listening on http://{}", &addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
+    tracing::info!("listening on http://{}", &addr);
+
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    axum::serve(listener, app.into_make_service())
         .await
         .unwrap();
 }

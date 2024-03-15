@@ -1,12 +1,16 @@
 use cfg_if::cfg_if;
 pub mod app;
+
+pub mod pages;
 pub mod env;
 pub mod error_template;
-pub mod fileserv;
+
 pub mod models;
 pub mod server;
 
 pub use models::User;
+#[cfg(feature = "ssr")]
+pub mod fileserv;
 
 cfg_if! { if #[cfg(feature = "hydrate")] {
     use leptos::*;
@@ -15,9 +19,12 @@ cfg_if! { if #[cfg(feature = "hydrate")] {
 
     #[wasm_bindgen]
     pub fn hydrate() {
-        // initializes logging using the `log` crate
-        _ = console_log::init_with_level(log::Level::Debug);
         console_error_panic_hook::set_once();
+        tracing_wasm::set_as_global_default_with_config(
+            tracing_wasm::WASMLayerConfigBuilder::default()
+                .set_max_level(tracing::Level::DEBUG)
+                .build(),
+        );
 
         leptos::mount_to_body(App);
     }

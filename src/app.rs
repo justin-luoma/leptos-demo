@@ -1,26 +1,25 @@
-use crate::error_template::{AppError, ErrorTemplate};
-use crate::User;
-use crate::server::*;
+use base64::Engine;
 use gloo_storage::{LocalStorage, Storage};
+use leptonic::prelude::*;
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
-use crate::env::*;
-use base64::Engine;
 use serde_json::Value;
 
+use crate::error_template::{AppError, ErrorTemplate};
+use crate::pages::welcome::Welcome;
+use crate::User;
 
 #[component]
 pub fn App() -> impl IntoView {
-    // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
-    // let (user, set_user, _) = use_local_storage::<User, JsonCodec>("user");
+
     let refreshed = create_rw_signal(false);
     let user = create_rw_signal(Option::None::<User>);
 
     create_effect(move |_| {
         if let Ok(u) = LocalStorage::get("user") {
-            log::info!("refreshed user");
+            // log::info!("refreshed user");
             user.set(Some(u));
             refreshed.set(true);
         }
@@ -30,74 +29,76 @@ pub fn App() -> impl IntoView {
         if !refreshed.get() {
             if let Some(user) = user.get() {
                 LocalStorage::set("user", user).expect("LocalStorage::set user");
-                log::info!("saved user to local storage");
+                // log::info!("saved user to local storage");
             }
         }
     });
 
     view! {
-        <Stylesheet id="leptos" href="/pkg/demo.css"/>
+        <Meta name="charset" content="UTF-8"/>
+        <Meta name="description" content="Leptonic SSR template"/>
+        <Meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <Meta name="theme-color" content="#8856e6"/>
 
-        // sets the document title
-        <Title text="Welcome to Leptos"/>
+        <Stylesheet id="leptos" href="/pkg/leptonic-template-ssr.css"/>
+        <Stylesheet href="https://fonts.googleapis.com/css?family=Roboto&display=swap"/>
 
-        // content for this welcome page
-        <Router fallback=|| {
-            let mut outside_errors = Errors::default();
-            outside_errors.insert_with_default_key(AppError::NotFound);
-            view! { <ErrorTemplate outside_errors/> }.into_view()
-        }>
-            <main>
+        <Title text="Leptonic SSR template"/>
+
+        <Root default_theme=LeptonicTheme::default()>
+            <Router fallback=|| {
+                let mut outside_errors = Errors::default();
+                outside_errors.insert_with_default_key(AppError::NotFound);
+                view! {
+                    <ErrorTemplate outside_errors/>
+                }
+            }>
                 <Routes>
-                    <Route
-                        path="/"
-                        view=move || {
-                            view! {
-                                <Show when=move || user.get().is_some()>
-                                    <HomePage user1=user.get().unwrap()/>
-                                </Show>
-                                <Show when=move || user.get().is_none()>
-                                    <div>
-                                        <p>No user</p>
-                                        <p>{refreshed.get()}</p>
-                                        <a href=SUPABASE_URL.to_owned() + SUPABASE_GOOGLE_LOGIN + SUPABASE_REDIRECT>"Login here"</a>
-                                        <button on:click=move |_| {
-                                            log::info!("Setting user");
-                                            user.set(
-                                                Some(
-                                                    User::new(
-                                                        String::new(),
-                                                        String::from("uuid"),
-                                                        String::new(),
-                                                        String::new(),
-                                                    ),
-                                                ),
-                                            );
-                                        }>Set User</button>
-                                    </div>
-                                </Show>
-                            }
-                        }
-                    />
+                    <Route path="/" view=|| view! { <Welcome/> }/>
                     <Route
                         path="/redirect"
                         view={move || {
                             let new_user = url_hash_to_user(use_location().hash.get());
-                            match new_user {
+                            user.set(new_user);
+                            /*match new_user {
                                 Some(new_user) => {
                                     user.set(Some(new_user));
-                                    view! { <Redirect path="/" /> }
+                                    // view! { <Redirect path="/" /> }
                                 }
-                                None => view! { 
-                                    // <Redirect path=SUPABASE_URL.to_owned() + SUPABASE_GOOGLE_LOGIN + SUPABASE_REDIRECT />
-                                    <div></div>
-                                 }.into_view(),
+                                None => {
+                                 //    view! {
+                                 //    // <Redirect path=SUPABASE_URL.to_owned() + SUPABASE_GOOGLE_LOGIN + SUPABASE_REDIRECT />
+                                 //    <div></div>
+                                 // }.into_view()
+                            },*/
+/*
+<Show when=move || user.get().is_some()>
+    <HomePage user1=user.get().unwrap()/>
+</Show>
+*/
+                        view! {
+                            <Show when= move || user.get().is_some() >
+                                <Redirect path="/"  options=
+                                    NavigateOptions {
+                                        replace: true,
+                                        resolve: true,
+                                        ..Default::default()
+                                    } />
+                            </Show>
+                            <Show when= move || user.get().is_none() >
+                                <Redirect path="/" options=
+                                    NavigateOptions {
+                                        replace: true,
+                                        resolve: true,
+                                        ..Default::default()
+                                    } />
+                            </Show>
+                        }
                             }
-                        }}
-                    />
+                        } />
                 </Routes>
-            </main>
-        </Router>
+            </Router>
+        </Root>
     }
 }
 
@@ -142,9 +143,12 @@ pub fn url_hash_to_user(mut url_hash: String) -> Option<User> {
         .map(|access_token| access_token_to_uuid_email(access_token.as_str()))
         .flatten();
     match (uuid_email, access_token, refresh_token) {
-        (Some((uuid, email)), Some(access_token), Some(refresh_token)) => {
-            Some(User { uuid, email, access_token, refresh_token })
-        }
+        (Some((uuid, email)), Some(access_token), Some(refresh_token)) => Some(User {
+            uuid,
+            email,
+            access_token,
+            refresh_token,
+        }),
         _ => None,
     }
 }
